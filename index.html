@@ -1,0 +1,766 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>智能辅助教学 · 老师端 & 学生端 | 讲解建议中心</title>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.6/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mammoth@1.6.0/mammoth.browser.min.js"></script>
+    <style>
+        :root { --pink: #e5989b; --blue: #9DC3E6; --green: #7fb07f; --text: #5a4a52; --border: #fde2e4; --shadow: 0 10px 30px rgba(233,200,192,0.15); --radius: 20px; }
+        * { box-sizing: border-box; font-family: system-ui, 'Segoe UI', 'Roboto', sans-serif; }
+        body { background: linear-gradient(135deg, #fdfbf7, #f9f3f0); margin: 0; padding: 20px; color: var(--text); }
+        .container { max-width: 1500px; margin: auto; }
+        .main-tabs { display: flex; gap: 10px; margin-bottom: 24px; background: white; border-radius: 40px; padding: 6px; box-shadow: var(--shadow); border: 1px solid var(--border); }
+        .main-tab { padding: 12px 28px; border-radius: 40px; cursor: pointer; font-weight: 600; color: #8b6f7c; background: transparent; border: none; transition: 0.2s; }
+        .main-tab.active { background: var(--pink); color: white; }
+        .sub-tabs { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+        .sub-tab { padding: 8px 20px; border-radius: 30px; cursor: pointer; border: 1.5px solid #fbc4c0; background: white; color: #8b6f7c; font-weight: 500; transition: 0.2s; }
+        .sub-tab.active { background: var(--blue); color: white; border-color: var(--blue); }
+        .card { background: rgba(255,255,255,0.95); border-radius: var(--radius); padding: 24px; margin-bottom: 24px; box-shadow: var(--shadow); border: 1px solid var(--border); }
+        h2 { color: #7a6174; border-left: 5px solid #ffb5a7; padding-left: 14px; margin: 0 0 16px; }
+        h3 { color: #8b6f7c; margin: 16px 0 8px; }
+        .btn { background: var(--pink); color: white; border: none; padding: 10px 22px; border-radius: 30px; cursor: pointer; font-weight: 500; transition: 0.2s; }
+        .btn:hover { background: #d48184; }
+        .btn.blue { background: var(--blue); } .btn.green { background: #6db86d; } .btn.small { padding: 6px 16px; font-size: 0.85rem; }
+        input[type="file"] { padding: 6px 12px; border: 1px dashed #f8afa6; border-radius: 30px; background: #fff9f8; }
+        input[type="text"], input[type="number"], select { padding: 8px 16px; border: 1.5px solid #fbc4c0; border-radius: 30px; background: white; color: #5a4a52; }
+        textarea { border: 1.5px solid #fbc4c0; border-radius: 16px; padding: 12px; width: 100%; resize: vertical; background: #fffbfa; }
+        .stats-grid { display: flex; flex-wrap: wrap; gap: 14px; margin: 14px 0; }
+        .stat-badge { background: #f8edeb; border-radius: 30px; padding: 8px 20px; font-weight: 500; }
+        .stat-badge strong { margin-left: 8px; color: #b5838d; font-size: 1.3rem; }
+        .chart-box { height: 300px; margin: 16px 0; }
+        table { width: 100%; border-collapse: collapse; background: white; border-radius: 14px; overflow: hidden; margin: 12px 0; }
+        th { background: #fcd5ce; padding: 10px 14px; text-align: left; color: #6b4f5c; }
+        td { padding: 8px 14px; border-bottom: 1px solid #ffe5d9; }
+        .correct-tag { background: #d4edda; color: #155724; padding: 3px 10px; border-radius: 14px; font-size: 0.85rem; display: inline-block; }
+        .wrong-tag { background: #f8d7da; color: #721c24; padding: 3px 10px; border-radius: 14px; font-size: 0.85rem; display: inline-block; }
+        .mistake-card { background: #fffbfa; border-radius: 14px; padding: 14px; border: 1px solid #ffe5d9; margin-bottom: 10px; }
+        .topic-tag { display: inline-block; background: #fcd5ce; padding: 3px 12px; border-radius: 14px; font-size: 0.8rem; color: #8b5e6b; margin: 2px; }
+        .flex-row { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+        .hidden { display: none !important; }
+        .note { color: #a4938e; font-size: 0.85rem; margin-top: 6px; }
+        .tab-content { display: none; } .tab-content.active { display: block; }
+        .login-box { max-width: 400px; margin: 40px auto; text-align: center; }
+        .empty-state { text-align: center; padding: 40px; color: #a4938e; }
+        .insight-card { background: #fef7f5; border-left: 4px solid var(--pink); margin-bottom: 18px; }
+        .teaching-tip { background: #e3f4fc; border-radius: 20px; padding: 18px; margin-top: 20px; }
+        .category-filter { background: #f8edeb; border-radius: 30px; padding: 6px 12px; display: inline-flex; align-items: center; gap: 10px; }
+        .quiz-question { background: #fff9f8; border-radius: 16px; padding: 16px; margin-bottom: 16px; border-left: 4px solid var(--blue); }
+        .quiz-option { margin: 8px 0; display: flex; align-items: center; gap: 10px; }
+        .question-preview { cursor: help; border-bottom: 1px dotted #aaa; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="main-tabs">
+        <button class="main-tab active" data-role="teacher">👩‍🏫 老师端</button>
+        <button class="main-tab" data-role="student">👨‍🎓 学生端</button>
+    </div>
+    <!-- 老师端 -->
+    <div id="teacherPanel">
+        <div class="sub-tabs">
+            <button class="sub-tab active" data-sub="questionBank">📚 题目管理</button>
+            <button class="sub-tab" data-sub="mistakeStats">📊 错题选项统计</button>
+            <button class="sub-tab" data-sub="teachingAdvice">🧠 讲解建议</button>
+        </div>
+        <!-- 题目管理 -->
+        <div class="tab-content active" id="sub-questionBank">
+            <div class="card">
+                <h2>📚 题目库管理</h2>
+                <div class="flex-row" style="justify-content: space-between; flex-wrap: wrap;">
+                    <div class="flex-row">
+                        <input type="file" id="wordUpload" accept=".docx,.doc" />
+                        <button class="btn" id="parseWordBtn">🔍 解析Word题目</button>
+                        <button class="btn blue" id="addManualQBtn">➕ 手动添加题目</button>
+                        <button class="btn small" id="clearBankBtn">🗑 清空题库</button>
+                    </div>
+                    <div class="category-filter">
+                        <span>📂 分类筛选：</span>
+                        <select id="categoryFilterSelect"><option value="all">全部题目</option></select>
+                    </div>
+                </div>
+                <span class="note" id="wordStatus"></span>
+                <div id="manualQForm" class="hidden card" style="margin-top:14px;">
+                    <h3>手动添加题目</h3>
+                    <div class="flex-row" style="gap:8px; margin-bottom:8px;">
+                        <input type="text" id="mqId" placeholder="题号" style="width:80px;" />
+                        <select id="mqType"><option value="single">单选题</option><option value="multi">多选题</option></select>
+                        <input type="text" id="mqCategory" placeholder="分类" style="width:150px;" />
+                        <select id="mqCategorySelect" style="width:150px;"><option value="">或选择已有分类</option></select>
+                    </div>
+                    <textarea id="mqText" rows="3" placeholder="题目内容"></textarea>
+                    <div class="flex-row">
+                        <input type="text" id="mqOptA" placeholder="A选项" /><input type="text" id="mqOptB" placeholder="B选项" />
+                        <input type="text" id="mqOptC" placeholder="C选项" /><input type="text" id="mqOptD" placeholder="D选项" />
+                    </div>
+                    <div class="flex-row">
+                        <input type="text" id="mqAnswer" placeholder="正确答案" />
+                        <input type="text" id="mqTopic" placeholder="知识点" />
+                        <button class="btn green small" id="saveManualQ">保存题目</button>
+                    </div>
+                </div>
+                <div id="questionBankContainer">
+                    <div id="emptyBank" class="empty-state"><p>📭 暂无题目，请导入Word文档或手动添加</p></div>
+                    <table id="questionBankTable" class="hidden">
+                        <thead>——
+                            <th>题号</th><th>类型</th><th>题目摘要</th><th>答案</th><th>知识点</th><th>分类</th><th>操作</th>
+                        </thead>
+                        <tbody id="qBankBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <!-- 错题选项统计 -->
+        <div class="tab-content" id="sub-mistakeStats">
+            <div class="card">
+                <h2>📊 错题选项统计</h2>
+                <div class="flex-row" style="gap:12px; margin-bottom:12px;">
+                    <span>📂 题库分类：</span>
+                    <select id="mistakeCategorySelect"><option value="all">全部题目（不依赖分类）</option></select>
+                    <span class="note">选择分类后，系统将自动从题库中读取该分类下所有题目的正确答案，重新分析已有学生数据并刷新讲解建议。</span>
+                </div>
+                <div class="flex-row">
+                    <input type="file" id="mistakeDataUpload" accept=".xlsx,.xls,.csv" />
+                    <button class="btn blue" id="analyzeMistakeBtn">🔍 分析/上传</button>
+                    <button class="btn" id="loadSampleMistakeBtn">📋 加载示例数据</button>
+                    <span class="note" id="mistakeStatus"></span>
+                </div>
+                <p class="note">💡 支持上传Excel: 包含学号/工号、姓名、总分及每道题答案列。</p>
+            </div>
+            <div class="card hidden" id="mistakeOverviewCard"><div class="stats-grid" id="mistakeOverviewStats"></div></div>
+            <div class="card hidden" id="mistakeDetailCard">
+                <h3>各题选项分布</h3>
+                <div class="flex-row" id="qTabs"></div>
+                <div class="chart-box"><canvas id="mistakeOptionChart"></canvas></div>
+                <p class="note">✨ 悬停柱状图查看学生名单及选择率</p>
+            </div>
+            <div class="card hidden" id="mistakeTableCard">
+                <h3>错题汇总 (错误率≥50%)</h3>
+                <table><thead><tr><th>题号</th><th>正确答案</th><th>错误人数</th><th>错误率</th><th>主要错误选项</th></tr></thead><tbody id="mistakeTableBody"></tbody></table>
+            </div>
+        </div>
+        <!-- 讲解建议（顺序：先综合教学意见，再高错误率原题剖析） -->
+        <div class="tab-content" id="sub-teachingAdvice">
+            <div class="card">
+                <h2>🧠 讲解建议</h2>
+                <div class="flex-row"><span class="note">基于错题统计数据 + 题目库</span><button class="btn blue small" id="refreshAdviceBtn">🔄 刷新建议</button></div>
+                <div id="advicePlaceholder" class="empty-state"><p>📊 暂无错题统计数据</p></div>
+                <div id="adviceContent" class="hidden">
+                    <div class="stats-grid" id="adviceOverview"></div>
+                    <h3>📖 薄弱知识点分布</h3>
+                    <div class="chart-box" style="height:260px;"><canvas id="knowledgeChart"></canvas></div>
+                    <div class="teaching-tip" id="teachingOpinionBox" style="margin-top:20px;"><h3>📌 综合教学意见</h3><div id="teachingOpinionText"></div></div>
+                    <h3>⚠️ 高错误率题目原题剖析 (错误率≥50%)</h3>
+                    <div id="highMistakeQuestionsList"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- 学生端 -->
+    <div id="studentPanel" class="hidden">
+        <div class="card login-box" id="studentLoginBox">
+            <h2>👨‍🎓 学生登录</h2>
+            <input type="text" id="studentIdInput" placeholder="输入学号" />
+            <button class="btn" id="studentLoginBtn">登录</button>
+            <p class="note" id="loginStatus"></p>
+        </div>
+        <div id="studentContent" class="hidden">
+            <div class="sub-tabs">
+                <button class="sub-tab active" data-stab="myScore">📋 我的成绩</button>
+                <button class="sub-tab" data-stab="myMistake">📝 错题本</button>
+                <button class="sub-tab" data-stab="selfTest">✏️ 自测练习</button>
+                <button class="sub-tab" data-stab="aiChat">🤖 AI问答</button>
+            </div>
+            <!-- 我的成绩 -->
+            <div class="tab-content active" id="stab-myScore">
+                <div class="card">
+                    <h2 id="studentNameTitle">我的成绩</h2>
+                    <div class="flex-row"><span>📂 筛选分类：</span><select id="studentScoreCategorySelect"><option value="all">全部题目</option></select></div>
+                    <div id="allQuestionsList" style="max-height:500px; overflow-y:auto;"></div>
+                </div>
+            </div>
+            <!-- 错题本 -->
+            <div class="tab-content" id="stab-myMistake">
+                <div class="card">
+                    <h2>📝 我的错题本</h2>
+                    <div class="flex-row">
+                        <span>📂 筛选分类：</span>
+                        <select id="mistakeCategoryStudentSelect">
+                            <option value="all">全部错题</option>
+                        </select>
+                        <span class="note">全部错题时显示表格，选择具体分类时显示原题剖析</span>
+                    </div>
+                    <div id="mistakeChartContainer" class="hidden" style="height:240px;"><canvas id="studentMistakeKnowledgeChart"></canvas></div>
+                    <div id="mistakeDetailTableContainer" class="hidden" style="margin-top:16px;">
+                        <h4>📋 错题明细表</h4>
+                        <table id="mistakeDetailTable">
+                            <thead>——
+
+<th>分类</th><th>题号</th><th>题目摘要</th><th>知识点</th><th>错误次数</th>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                    <div id="mistakeOriginalAnalysisContainer" class="hidden" style="margin-top:20px;"></div>
+                    <div id="studentMistakeList"></div>
+                </div>
+            </div>
+            <!-- 自测练习 -->
+            <div class="tab-content" id="stab-selfTest">
+                <div class="card">
+                    <h2>✏️ 自测练习</h2>
+                    <div class="flex-row">
+                        <span>📂 选择题库分类：</span><select id="quizCategorySelect"><option value="all">全部题库</option></select>
+                        <span>题目数量：</span><input type="number" id="quizCount" value="5" min="1" max="20" style="width:70px;" />
+                        <button class="btn blue" id="startQuizBtn">开始自测</button>
+                    </div>
+                    <div id="quizArea"></div>
+                    <div id="quizResult" class="hidden"><div class="stats-grid"></div><button class="btn small" id="continueQuizBtn">继续练习</button></div>
+                </div>
+            </div>
+            <!-- AI问答 -->
+            <div class="tab-content" id="stab-aiChat">
+                <div class="card">
+                    <h2>🤖 AI在线问答</h2>
+                    <div class="chat-box" id="chatBox"><div class="chat-msg ai">你好！我是AI助教。</div></div>
+                    <div class="flex-row"><textarea id="chatInput" rows="2" placeholder="输入问题..." style="flex:1;"></textarea><button class="btn blue" id="sendChatBtn">发送</button></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+(function(){
+    const STORAGE_KEY = 'teaching_data_v12';
+    let studentMistakeCounter = {};
+    let appData = { questionBank: [], multiExamData: [], multiExamCount: 2, multiSubjects: [], multiSubjectMarks: {} };
+    let mistakeStatsData = null;
+    let currentStudent = null;
+    let knowledgeChart = null, studentMistakeChart = null;
+    let currentCategoryFilter = 'all';
+    let currentMistakeQ = 1, mistakeChart = null;
+    
+    function loadData() {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (saved) try { const p = JSON.parse(saved); appData = { ...appData, ...p }; appData.questionBank = appData.questionBank || []; } catch(e) {}
+        const counterSaved = localStorage.getItem('student_mistake_counter');
+        if(counterSaved) try { studentMistakeCounter = JSON.parse(counterSaved); } catch(e) {}
+    }
+    function saveData() { localStorage.setItem(STORAGE_KEY, JSON.stringify(appData)); saveCounter(); }
+    function saveCounter() { localStorage.setItem('student_mistake_counter', JSON.stringify(studentMistakeCounter)); }
+    
+    // 生成完整题目+选项的提示文本
+    function getFullQuestionTooltip(q) {
+        let tip = q.text || '';
+        if (q.options) {
+            if (q.options.A) tip += '\nA. ' + q.options.A;
+            if (q.options.B) tip += '\nB. ' + q.options.B;
+            if (q.options.C) tip += '\nC. ' + q.options.C;
+            if (q.options.D) tip += '\nD. ' + q.options.D;
+        }
+        return tip;
+    }
+    
+    function updateAllCategorySelects() {
+        const categories = new Set();
+        appData.questionBank.forEach(q => { if(q.category) categories.add(q.category); });
+        const sortedCats = Array.from(categories).sort();
+        
+        const filterSel = document.getElementById('categoryFilterSelect');
+        if(filterSel) {
+            let html = '<option value="all">全部题目</option>';
+            sortedCats.forEach(c => html += `<option value="${c}">${c}</option>`);
+            filterSel.innerHTML = html;
+            if (currentCategoryFilter !== 'all' && sortedCats.includes(currentCategoryFilter)) filterSel.value = currentCategoryFilter;
+            else filterSel.value = 'all';
+        }
+        
+        const mistakeSel = document.getElementById('mistakeCategorySelect');
+        if(mistakeSel) {
+            let html = '<option value="all">全部题目（不依赖分类）</option>';
+            sortedCats.forEach(c => html += `<option value="${c}">${c}</option>`);
+            mistakeSel.innerHTML = html;
+        }
+        
+        const scoreSel = document.getElementById('studentScoreCategorySelect');
+        if(scoreSel) {
+            let html = '<option value="all">全部题目</option>';
+            sortedCats.forEach(c => html += `<option value="${c}">${c}</option>`);
+            scoreSel.innerHTML = html;
+        }
+        
+        const mistakeStudentSel = document.getElementById('mistakeCategoryStudentSelect');
+        if(mistakeStudentSel) {
+            let html = '<option value="all">全部错题</option>';
+            sortedCats.forEach(c => html += `<option value="${c}">${c}</option>`);
+            mistakeStudentSel.innerHTML = html;
+        }
+        
+        const quizSel = document.getElementById('quizCategorySelect');
+        if(quizSel) {
+            let html = '<option value="all">全部题库</option>';
+            sortedCats.forEach(c => html += `<option value="${c}">${c}</option>`);
+            quizSel.innerHTML = html;
+        }
+    }
+    
+    // 老师端题目管理表格（悬停显示完整题目+选项）
+    function renderQuestionBank() {
+        const table = document.getElementById('questionBankTable');
+        const empty = document.getElementById('emptyBank');
+        const tbody = document.getElementById('qBankBody');
+        let filtered = currentCategoryFilter === 'all' ? appData.questionBank : appData.questionBank.filter(q => q.category === currentCategoryFilter);
+        if(filtered.length === 0){ table.classList.add('hidden'); empty.classList.remove('hidden'); return; }
+        empty.classList.add('hidden'); table.classList.remove('hidden');
+        tbody.innerHTML = filtered.map((q,i)=>`
+            <tr>
+                <td>${q.id}</td>
+                <td>${q.type==='multi'?'多选':'单选'}</td>
+                <td class="question-preview" title="${getFullQuestionTooltip(q).replace(/"/g, '&quot;')}">${(q.text||'').substring(0,40)}...</td>
+                <td>${q.answer}</td>
+                <td><span class="topic-tag">${q.topic||'未分类'}</span></td>
+                <td><span class="topic-tag">${q.category||'未分类'}</span></td>
+                <td><button class="btn small" onclick="window.deleteQuestion(${appData.questionBank.findIndex(qq=>qq===q)})">删除</button></td>
+            </tr>
+        `).join('');
+        updateAllCategorySelects();
+    }
+    window.deleteQuestion = (idx) => { appData.questionBank.splice(idx,1); saveData(); renderQuestionBank(); };
+    
+    document.getElementById('categoryFilterSelect')?.addEventListener('change', (e) => {
+        currentCategoryFilter = e.target.value;
+        renderQuestionBank();
+    });
+    
+    // Word解析等（与之前相同，省略... 但保留完整）
+    document.getElementById('parseWordBtn')?.addEventListener('click', async () => {
+        const file = document.getElementById('wordUpload').files[0];
+        if(!file) return;
+        let cat = prompt('请输入分类名称', file.name.replace(/\.(docx|doc)$/i,''));
+        if(!cat) cat='未分类';
+        const buf=await file.arrayBuffer();
+        const result=await mammoth.extractRawText({arrayBuffer:buf});
+        const lines=result.value.split('\n').filter(l=>l.trim());
+        const qRegex=/^(\d+)\.\s*[\[(](单选|多选)题[\]）]\s*(.+)/i;
+        let questions=[], cur=null, opts={};
+        for(let line of lines){
+            line=line.trim();
+            let m=line.match(qRegex);
+            if(m){
+                if(cur){ cur.options=opts; questions.push(cur); }
+                cur={id:m[1], type:m[2]==='多选'?'multi':'single', text:m[3], answer:'', topic:'', category:cat, options:{}};
+                opts={}; continue;
+            }
+            if(!cur) continue;
+            let om=line.match(/^([A-D])[.、]\s*(.+)/);
+            if(om){ opts[om[1]]=om[2]; continue; }
+            let am=line.match(/正确答案\s*[:：]\s*([A-D]+)/i);
+            if(am){ cur.answer=am[1].toUpperCase(); continue; }
+            let tm=line.match(/知识点\s*[:：]\s*(.+)/i);
+            if(tm){ cur.topic=tm[1].trim(); }
+        }
+        if(cur){ cur.options=opts; questions.push(cur); }
+        let added=0;
+        for(let q of questions) if(!appData.questionBank.some(ex=>String(ex.id)===String(q.id) && ex.category===q.category)){ appData.questionBank.push(q); added++; }
+        saveData(); renderQuestionBank(); document.getElementById('wordStatus').textContent=`✅ 添加${added}题`;
+    });
+    document.getElementById('addManualQBtn')?.addEventListener('click',()=>document.getElementById('manualQForm').classList.toggle('hidden'));
+    document.getElementById('saveManualQ')?.addEventListener('click',()=>{
+        let cat=document.getElementById('mqCategory').value.trim()||'未分类';
+        let q={id:document.getElementById('mqId').value, type:document.getElementById('mqType').value, text:document.getElementById('mqText').value, options:{A:document.getElementById('mqOptA').value,B:document.getElementById('mqOptB').value,C:document.getElementById('mqOptC').value,D:document.getElementById('mqOptD').value}, answer:document.getElementById('mqAnswer').value.toUpperCase(), topic:document.getElementById('mqTopic').value, category:cat};
+        if(q.id&&q.text&&q.answer){ appData.questionBank.push(q); saveData(); renderQuestionBank(); document.getElementById('manualQForm').classList.add('hidden'); }
+    });
+    document.getElementById('clearBankBtn')?.addEventListener('click',()=>{ if(confirm('清空题库?')){ appData.questionBank=[]; saveData(); renderQuestionBank(); } });
+    
+    // 错题统计函数（保持不变）
+    function isAnswerCorrect(studentAns, correctAns) {
+        if(!studentAns || studentAns==='未答') return false;
+        let sSet=new Set(studentAns.toUpperCase().split('').filter(c=>/[A-D]/.test(c)));
+        let cSet=new Set(correctAns.toUpperCase().split(''));
+        if(sSet.size!==cSet.size) return false;
+        for(let ch of sSet) if(!cSet.has(ch)) return false;
+        return true;
+    }
+    function calcQuestionStats(qIdx, mistakeData){
+        const correctAns=mistakeData.correctAnswers[qIdx];
+        const counts={A:0,B:0,C:0,D:0,'未答':0};
+        const nameMap={A:new Set(),B:new Set(),C:new Set(),D:new Set(),'未答':new Set()};
+        let correctCount=0;
+        mistakeData.students.forEach(s=>{
+            let raw=s.answers[qIdx]||'未答';
+            if(raw==='未答'){ counts['未答']++; nameMap['未答'].add(s.name); return; }
+            raw=raw.toUpperCase();
+            let opts=raw.split('').filter(c=>/[A-D]/.test(c));
+            if(opts.length===0){ counts['未答']++; nameMap['未答'].add(s.name); return; }
+            opts.forEach(opt=>{ counts[opt]++; nameMap[opt].add(s.name); });
+            if(isAnswerCorrect(raw,correctAns)) correctCount++;
+        });
+        const total=mistakeData.students.length;
+        const wrongCount=total-correctCount;
+        const wrongRate=(wrongCount/total)*100;
+        let wrongOpts=[];
+        for(let opt of ['A','B','C','D']) if(!correctAns.includes(opt) && counts[opt]>0) wrongOpts.push({option:opt,count:counts[opt]});
+        wrongOpts.sort((a,b)=>b.count-a.count);
+        return {correctAns,counts,nameMap,correctCount,wrongCount,wrongRate,wrongOpts:wrongOpts.slice(0,3),total};
+    }
+    function renderMistakeAnalysisForStats(){
+        if(!mistakeStatsData) return;
+        document.getElementById('mistakeOverviewCard').classList.remove('hidden');
+        document.getElementById('mistakeDetailCard').classList.remove('hidden');
+        document.getElementById('mistakeTableCard').classList.remove('hidden');
+        const students=mistakeStatsData.students;
+        const avgScore=(students.reduce((a,b)=>a+b.score,0)/students.length).toFixed(1);
+        document.getElementById('mistakeOverviewStats').innerHTML=`<span class="stat-badge">👥 <strong>${students.length}</strong>人</span><span class="stat-badge">📊 平均分 <strong>${avgScore}</strong></span>`;
+        const totalQ=mistakeStatsData.totalQuestions;
+        let tabsHtml='';
+        for(let i=1;i<=totalQ;i++) tabsHtml+=`<button class="sub-tab ${i===currentMistakeQ?'active':''}" data-qidx="${i}">第${i}题</button>`;
+        document.getElementById('qTabs').innerHTML=tabsHtml;
+        document.querySelectorAll('#qTabs .sub-tab').forEach(btn=>btn.addEventListener('click',()=>{ currentMistakeQ=parseInt(btn.dataset.qidx); renderMistakeAnalysisForStats(); }));
+        const stats=calcQuestionStats(currentMistakeQ-1,mistakeStatsData);
+        const ctx=document.getElementById('mistakeOptionChart').getContext('2d');
+        if(mistakeChart) mistakeChart.destroy();
+        const labels=['A','B','C','D','未答'];
+        const data=labels.map(l=>stats.counts[l]||0);
+        const correctSet=new Set(stats.correctAns.split(''));
+        const bgColors=labels.map(l=> l==='未答'?'#c5a3cfcc': correctSet.has(l)?'#7fb07fcc':'#e5989bcc');
+        mistakeChart=new Chart(ctx,{type:'bar',data:{labels,datasets:[{data,backgroundColor:bgColors}]},options:{responsive:true,maintainAspectRatio:false,plugins:{tooltip:{callbacks:{title:(items)=>`第${currentMistakeQ}题 - 选项 ${items[0].label}`,label:(item)=>{let cnt=data[item.dataIndex]; let pct=(cnt/stats.total*100).toFixed(1); return `${cnt}人 (${pct}%)`;},afterBody:(items)=>{let opt=items[0].label; let names=[...stats.nameMap[opt]]; if(names.length===0) return []; let show=names.slice(0,20); let lines=show.map(n=>`学生：${n}`); if(names.length>20) lines.push(`...等${names.length}人`); return lines;}}}}}});
+        let high=[];
+        for(let i=0;i<totalQ;i++){ let s=calcQuestionStats(i,mistakeStatsData); if(s.wrongRate>=50) high.push({qNum:i+1,...s}); }
+        document.getElementById('mistakeTableBody').innerHTML=high.length?high.map(h=>`<tr><td><strong>${h.qNum}</strong></td><td class="correct-tag">${h.correctAns}</td><td class="wrong-tag">${h.wrongCount}</td><td>${h.wrongRate.toFixed(1)}%</td><td>${h.wrongOpts.map(w=>`${w.option}(${w.count}人)`).join(',')}</td></tr>`).join(''):'<tr><td colspan="5">🎉 无高错误率题目</td></tr>';
+    }
+    async function handleMistakeUpload(file, selectedCategory) {
+        try {
+            let correctAnswers=[], totalQuestions=0;
+            if(selectedCategory!=='all'){
+                let qs=appData.questionBank.filter(q=>q.category===selectedCategory);
+                qs.sort((a,b)=>{ let an=parseInt(a.id)||a.id, bn=parseInt(b.id)||b.id; return an>bn?1:-1; });
+                correctAnswers=qs.map(q=>q.answer.toUpperCase());
+                totalQuestions=correctAnswers.length;
+                if(totalQuestions===0) throw new Error(`分类“${selectedCategory}”无题目`);
+            }
+            const data=await file.arrayBuffer();
+            const wb=XLSX.read(data,{type:'array'});
+            const sheet=wb.Sheets[wb.SheetNames[0]];
+            const rows=XLSX.utils.sheet_to_json(sheet,{header:1,defval:""});
+            if(rows.length<2) throw new Error("表格无数据");
+            if(selectedCategory==='all'){
+                let correctRowIdx=-1;
+                for(let i=rows.length-1;i>=0;i--) if(rows[i]&&rows[i][0]&&String(rows[i][0]).includes('正确答案')){ correctRowIdx=i; break; }
+                if(correctRowIdx!==-1){
+                    const row=rows[correctRowIdx];
+                    for(let j=1;j<row.length;j++) if(row[j]&&String(row[j]).trim()) correctAnswers.push(String(row[j]).trim().toUpperCase());
+                    totalQuestions=correctAnswers.length;
+                } else throw new Error("未找到正确答案行且未选择题库分类");
+            }
+            const students=[];
+            for(let i=1;i<rows.length;i++){
+                if(selectedCategory==='all' && rows[i]&&rows[i][0]&&String(rows[i][0]).includes('正确答案')) continue;
+                const row=rows[i]; if(!row||row.length<3) continue;
+                const id=String(row[1]||'').trim();
+                const name=String(row[2]||'').trim();
+                const score=parseFloat(row[3])||0;
+                if(!id&&!name) continue;
+                const answers=[];
+                for(let j=4;j<4+totalQuestions && j<row.length;j++) answers.push(row[j]?String(row[j]).trim().toUpperCase():'未答');
+                if(answers.length===totalQuestions) students.push({id,name,score,answers});
+            }
+            if(students.length===0) throw new Error("无有效学生数据");
+            mistakeStatsData={students,correctAnswers,totalQuestions};
+            document.getElementById('mistakeStatus').textContent=`✅ 加载成功，分类：${selectedCategory==='all'?'全部':selectedCategory}，共${students.length}人`;
+            renderMistakeAnalysisForStats();
+            renderTeachingAdvice();
+        } catch(err){ document.getElementById('mistakeStatus').textContent='❌ '+err.message; }
+    }
+    const SAMPLE_MISTAKE={students:[{id:'2',name:'李景成',score:66,answers:['A','B','A','B','B','D','A','D','B','C','C']},{id:'4',name:'张睿纳',score:56,answers:['A','B','A','B','C','D','C','B','B','C','C']},{id:'6',name:'黄馨怡',score:62,answers:['C','B','A','B','D','A','B','B','C','C','C']},{id:'7',name:'何灿梅',score:50,answers:['A','B','A','B','D','A','C','B','C','C','C']},{id:'8',name:'张思圆',score:68,answers:['A','B','A','B','A','D','A','C','B','C','C']},{id:'9',name:'钟含悦',score:60,answers:['A','B','A','B','A','D','A','A','B','C','C']}],correctAnswers:['A','B','D','B','A','D','A','D','B','B','C'],totalQuestions:11};
+    function loadSampleMistake(){ mistakeStatsData=JSON.parse(JSON.stringify(SAMPLE_MISTAKE)); document.getElementById('mistakeStatus').textContent='✅ 示例数据已加载'; renderMistakeAnalysisForStats(); renderTeachingAdvice(); }
+    function renderTeachingAdvice(){
+        if(!mistakeStatsData){ document.getElementById('advicePlaceholder').classList.remove('hidden'); document.getElementById('adviceContent').classList.add('hidden'); return; }
+        document.getElementById('advicePlaceholder').classList.add('hidden'); document.getElementById('adviceContent').classList.remove('hidden');
+        const totalQ=mistakeStatsData.totalQuestions;
+        let stats=[];
+        for(let i=0;i<totalQ;i++) stats.push(calcQuestionStats(i,mistakeStatsData));
+        let highIdx=[];
+        stats.forEach((s,i)=>{ if(s.wrongRate>=50) highIdx.push(i); });
+        highIdx.sort((a,b)=>stats[b].wrongRate-stats[a].wrongRate);
+        document.getElementById('adviceOverview').innerHTML=`<span class="stat-badge">总题数 <strong>${totalQ}</strong></span><span class="stat-badge">高错误率题数(≥50%) <strong>${highIdx.length}</strong></span>`;
+        let kMap=new Map();
+        highIdx.forEach(idx=>{
+            let q=appData.questionBank.find(q=>String(q.id)===String(idx+1));
+            let topic=q?.topic||'未分类';
+            kMap.set(topic,(kMap.get(topic)||0)+1);
+        });
+        if(kMap.size===0) kMap.set('无',1);
+        const ctx=document.getElementById('knowledgeChart').getContext('2d');
+        if(window.teaChart) window.teaChart.destroy();
+        window.teaChart=new Chart(ctx,{type:'pie',data:{labels:Array.from(kMap.keys()),datasets:[{data:Array.from(kMap.values()),backgroundColor:['#e5989b','#9DC3E6','#7fb07f','#f9d978']}]}});
+        let weakTopics = Array.from(kMap.entries()).sort((a,b)=>b[1]-a[1]).slice(0,2).map(k=>k[0]).join('、');
+        let adviceHtml = `<p>📌 基于错题统计，班级整体薄弱环节主要集中在 <strong>${weakTopics || '若干知识点'}</strong> 上。建议优先讲解错误率≥50%的题目。</p><p>💡 教学建议：<br/>• 针对高频错误题目，开展专题讲解，结合变式训练强化理解。<br/>• 利用错题本功能让学生个性化复习，并布置针对性分层作业。<br/>• 课堂互动中可展示典型错误选项，分析干扰项设计逻辑，提升学生辨析能力。</p><p>🎯 推荐优先讲评题目: 第${highIdx.slice(0,3).map(i=>i+1).join('、')}题。</p>`;
+        document.getElementById('teachingOpinionText').innerHTML = adviceHtml;
+        let html='';
+        highIdx.forEach(idx=>{
+            let qNum=idx+1;
+            let q=appData.questionBank.find(q=>String(q.id)===String(qNum));
+            let text=q?.text||'未录入题目文本';
+            let correct=stats[idx].correctAns;
+            let wrongOpts=stats[idx].wrongOpts.map(w=>`${w.option}(${w.count})`).join(',');
+            html+=`<div class="mistake-card insight-card"><div><strong>🔢 第${qNum}题</strong> <span class="wrong-tag">错误率${stats[idx].wrongRate.toFixed(1)}%</span> <span class="correct-tag">正确答案: ${correct}</span></div><div style="margin:10px 0;background:#fef0ed;padding:12px;border-radius:16px;"><strong>📝 原题：</strong> ${text}<br>${q?.options ? `<div style="font-size:0.9rem; margin-top:6px;">A. ${q.options.A||''}  B. ${q.options.B||''}  C. ${q.options.C||''}  D. ${q.options.D||''}</div>` : ''}</div><div><span class="topic-tag">🏷️ 知识点: ${q?.topic||'未标注'}</span></div><div><strong>❌ 常见错误选项：</strong> ${wrongOpts}</div><div><strong>🔍 错误简析：</strong> 建议重点讲解该题干扰项。</div></div>`;
+        });
+        document.getElementById('highMistakeQuestionsList').innerHTML=html||'<div>无错误率≥50%的题目</div>';
+    }
+    document.getElementById('mistakeCategorySelect')?.addEventListener('change', async (e)=>{
+        let cat=e.target.value;
+        if(mistakeStatsData && mistakeStatsData.students && mistakeStatsData.students.length){
+            if(cat!=='all'){
+                let qs=appData.questionBank.filter(q=>q.category===cat);
+                qs.sort((a,b)=>(parseInt(a.id)||a.id)>(parseInt(b.id)||b.id)?1:-1);
+                let newCorrect=qs.map(q=>q.answer.toUpperCase());
+                if(newCorrect.length===mistakeStatsData.totalQuestions){
+                    mistakeStatsData.correctAnswers=newCorrect;
+                    document.getElementById('mistakeStatus').textContent=`✅ 已切换至分类“${cat}”，使用该分类下的正确答案重新分析`;
+                    renderMistakeAnalysisForStats();
+                    renderTeachingAdvice();
+                } else alert(`分类“${cat}”题目数量(${newCorrect.length})与原数据题数(${mistakeStatsData.totalQuestions})不匹配，无法分析`);
+            } else alert('切换到“全部题目”需要重新上传包含正确答案行的Excel');
+        }
+    });
+    document.getElementById('analyzeMistakeBtn')?.addEventListener('click',()=>{ if(mistakeStatsData) renderMistakeAnalysisForStats(); else loadSampleMistake(); });
+    document.getElementById('loadSampleMistakeBtn')?.addEventListener('click',loadSampleMistake);
+    document.getElementById('mistakeDataUpload')?.addEventListener('change',async(e)=>{ if(e.target.files[0]) await handleMistakeUpload(e.target.files[0], document.getElementById('mistakeCategorySelect').value); });
+    document.getElementById('refreshAdviceBtn')?.addEventListener('click',renderTeachingAdvice);
+    
+    // ========== 学生端 ==========
+    // 学生端我的成绩（悬停完整题目+选项）
+    function renderStudentAllQuestions(){
+        let filter=document.getElementById('studentScoreCategorySelect').value;
+        let questions=filter==='all'? appData.questionBank : appData.questionBank.filter(q=>q.category===filter);
+        if(!currentStudent){ document.getElementById('allQuestionsList').innerHTML='<p>请先登录</p>'; return; }
+        if(!mistakeStatsData){ document.getElementById('allQuestionsList').innerHTML='<p class="note">暂无答题数据，请老师先上传成绩文件或加载示例数据。</p>'; return; }
+        let studentData=mistakeStatsData.students.find(s=>s.id===currentStudent.id);
+        if(!studentData){ document.getElementById('allQuestionsList').innerHTML='<p>未找到你的答题记录</p>'; return; }
+        let html='<table><thead><tr><th>题号</th><th>题目</th><th>你的答案</th><th>正确答案</th><th>结果</th></tr></thead><tbody>';
+        questions.forEach(q=>{
+            let idx=parseInt(q.id)-1;
+            if(idx<0 || idx>=studentData.answers.length) return;
+            let userAns=studentData.answers[idx]||'未答';
+            let correct=mistakeStatsData.correctAnswers[idx];
+            let isCor=isAnswerCorrect(userAns,correct);
+            html+=`<tr>
+                <td>${q.id}</td>
+                <td class="question-preview" title="${getFullQuestionTooltip(q).replace(/"/g, '&quot;')}">${q.text.substring(0,50)}...</td>
+                <td class="${isCor?'correct-tag':'wrong-tag'}">${userAns}</td>
+                <td class="correct-tag">${correct}</td>
+                <td>${isCor?'✓正确':'✗错误'}</td>
+            </tr>`;
+        });
+        html+='</tbody></table>';
+        document.getElementById('allQuestionsList').innerHTML=html;
+    }
+    
+    // 学生端错题本明细表格（悬停完整题目+选项）
+    function renderStudentMistakes(){
+        if (!currentStudent || !mistakeStatsData) return;
+        let studentData = mistakeStatsData.students.find(s => s.id === currentStudent.id);
+        if (!studentData) return;
+        let filter = document.getElementById('mistakeCategoryStudentSelect').value;
+        let allQuestions = filter === 'all' ? appData.questionBank : appData.questionBank.filter(q => q.category === filter);
+        let mistakes = [];
+        allQuestions.forEach(q => {
+            let idx = parseInt(q.id) - 1;
+            if (idx >= 0 && idx < studentData.answers.length) {
+                let userAns = studentData.answers[idx];
+                let correct = mistakeStatsData.correctAnswers[idx];
+                if (!isAnswerCorrect(userAns, correct)) {
+                    let counter = (studentMistakeCounter[currentStudent.id]?.[q.id]) || 0;
+                    mistakes.push({ ...q, userAns, correct, wrongCount: counter });
+                }
+            }
+        });
+        if (mistakes.length === 0) {
+            document.getElementById('studentMistakeList').innerHTML = '<p>🎉 没有错题！</p>';
+            document.getElementById('mistakeChartContainer').classList.add('hidden');
+            document.getElementById('mistakeDetailTableContainer').classList.add('hidden');
+            document.getElementById('mistakeOriginalAnalysisContainer').classList.add('hidden');
+            return;
+        }
+        const isAll = (filter === 'all');
+        if (isAll) {
+            document.getElementById('mistakeDetailTableContainer').classList.remove('hidden');
+            document.getElementById('mistakeOriginalAnalysisContainer').classList.add('hidden');
+            let tbody = document.querySelector('#mistakeDetailTable tbody');
+            tbody.innerHTML = mistakes.map(m => `
+                <tr>
+                    <td>${m.category || '未分类'}</td>
+                    <td>${m.id}</td>
+                    <td class="question-preview" title="${getFullQuestionTooltip(m).replace(/"/g, '&quot;')}">${(m.text || '').substring(0, 60)}...</td>
+                    <td>${m.topic || '未分类'}</td>
+                    <td>${m.wrongCount}</td>
+                </tr>
+            `).join('');
+        } else {
+            document.getElementById('mistakeDetailTableContainer').classList.add('hidden');
+            document.getElementById('mistakeOriginalAnalysisContainer').classList.remove('hidden');
+            let html = '<h4>📖 错题原题剖析</h4>';
+            mistakes.forEach(m => {
+                html += `<div class="mistake-card insight-card">
+                            <div><strong>🔢 第${m.id}题</strong> <span class="wrong-tag">错误次数：${m.wrongCount}</span> <span class="correct-tag">正确答案: ${m.correct}</span></div>
+                            <div style="margin:10px 0;background:#fef0ed;padding:12px;border-radius:16px;"><strong>📝 原题：</strong> ${m.text}<br>${m.options ? `<div style="font-size:0.9rem; margin-top:6px;">A. ${m.options.A||''}  B. ${m.options.B||''}  C. ${m.options.C||''}  D. ${m.options.D||''}</div>` : ''}</div>
+                            <div><span class="topic-tag">🏷️ 知识点: ${m.topic || '未标注'}</span></div>
+                            <div><strong>❌ 你的答案：</strong> <span class="wrong-tag">${m.userAns}</span></div>
+                            <div><strong>💡 错误简析：</strong> 正确答案为 ${m.correct}，建议复习「${m.topic || '相关'}」知识点。</div>
+                        </div>`;
+            });
+            document.getElementById('mistakeOriginalAnalysisContainer').innerHTML = html;
+        }
+        let knowledgeMap = new Map();
+        mistakes.forEach(m => { let k = m.topic || '未分类'; knowledgeMap.set(k, (knowledgeMap.get(k) || 0) + 1); });
+        const ctx = document.getElementById('studentMistakeKnowledgeChart').getContext('2d');
+        if (studentMistakeChart) studentMistakeChart.destroy();
+        studentMistakeChart = new Chart(ctx, {
+            type: 'pie',
+            data: { labels: Array.from(knowledgeMap.keys()), datasets: [{ data: Array.from(knowledgeMap.values()), backgroundColor: ['#e5989b', '#9DC3E6', '#7fb07f', '#f9d978', '#c5a3cf'] }] },
+            options: {
+                onClick: (e, active) => {
+                    if (active.length && isAll) {
+                        let label = active[0].label;
+                        let filteredMistakes = mistakes.filter(m => (m.topic || '未分类') === label);
+                        let tbody = document.querySelector('#mistakeDetailTable tbody');
+                        if (filteredMistakes.length === 0) {
+                            tbody.innerHTML = '<tr><td colspan="5">该知识点下暂无错题</td></tr>';
+                        } else {
+                            tbody.innerHTML = filteredMistakes.map(m => `
+                                <tr>
+                                    <td>${m.category || '未分类'}</td>
+                                    <td>${m.id}</td>
+                                    <td class="question-preview" title="${getFullQuestionTooltip(m).replace(/"/g, '&quot;')}">${(m.text || '').substring(0, 60)}...</td>
+                                    <td>${m.topic || '未分类'}</td>
+                                    <td>${m.wrongCount}</td>
+                                </tr>
+                            `).join('');
+                        }
+                    } else if (active.length && !isAll) {
+                        alert('当前为分类筛选模式，不显示表格，如需查看知识点详情请切换至“全部错题”');
+                    }
+                }
+            }
+        });
+        document.getElementById('mistakeChartContainer').classList.remove('hidden');
+        document.getElementById('studentMistakeList').innerHTML = '';
+    }
+    
+    let currentQuizQuestions = [];
+    function startQuiz(){
+        let category = document.getElementById('quizCategorySelect').value;
+        let count = parseInt(document.getElementById('quizCount').value);
+        let questions = category === 'all' ? [...appData.questionBank] : appData.questionBank.filter(q => q.category === category);
+        if(questions.length === 0){ alert('所选分类下无题目'); return; }
+        if(count > questions.length) count = questions.length;
+        let shuffled = [...questions];
+        for(let i=shuffled.length-1;i>0;i--){ let j=Math.floor(Math.random()*(i+1)); [shuffled[i],shuffled[j]]=[shuffled[j],shuffled[i]]; }
+        currentQuizQuestions = shuffled.slice(0, count);
+        let html = '<div>';
+        currentQuizQuestions.forEach((q, idx) => {
+            let opts = ['A','B','C','D'].map(opt => `<label class="quiz-option"><input type="${q.type==='multi'?'checkbox':'radio'}" name="q${idx}" value="${opt}"> ${opt}. ${q.options[opt]||''}</label>`).join('');
+            html += `<div class="quiz-question"><strong>${idx+1}. ${q.text}</strong><br>${opts}</div>`;
+        });
+        html += `<div class="flex-row"><button class="btn green" id="submitQuizBtn">提交答案</button><button class="btn" id="cancelQuizBtn">取消</button></div></div>`;
+        document.getElementById('quizArea').innerHTML = html;
+        document.getElementById('submitQuizBtn')?.addEventListener('click', submitQuiz);
+        document.getElementById('cancelQuizBtn')?.addEventListener('click', () => { document.getElementById('quizArea').innerHTML = ''; document.getElementById('quizResult').classList.add('hidden'); });
+    }
+    function submitQuiz(){
+        let score = 0;
+        let wrongList = [];
+        for(let i=0;i<currentQuizQuestions.length;i++){
+            let q = currentQuizQuestions[i];
+            let selected = [];
+            if(q.type === 'multi'){
+                let chks = document.querySelectorAll(`input[name="q${i}"]:checked`);
+                selected = Array.from(chks).map(c => c.value);
+            } else {
+                let radio = document.querySelector(`input[name="q${i}"]:checked`);
+                if(radio) selected = [radio.value];
+            }
+            let userAns = selected.sort().join('');
+            let correct = q.answer;
+            let isCor = userAns === correct;
+            if(isCor) score++;
+            else {
+                wrongList.push(q);
+                if(!studentMistakeCounter[currentStudent.id]) studentMistakeCounter[currentStudent.id] = {};
+                studentMistakeCounter[currentStudent.id][q.id] = (studentMistakeCounter[currentStudent.id][q.id] || 0) + 1;
+                saveCounter();
+            }
+        }
+        let total = currentQuizQuestions.length;
+        let percent = (score/total*100).toFixed(1);
+        let resultHtml = `<div class="stats-grid"><span class="stat-badge">得分: ${score}/${total}</span><span class="stat-badge">正确率: ${percent}%</span></div><div><strong>错题数: ${wrongList.length}</strong><br>${wrongList.map(w => `<div>题号${w.id}：${w.text.substring(0,50)}... 正确答案${w.answer}</div>`).join('')}</div>`;
+        document.getElementById('quizResult').innerHTML = resultHtml;
+        document.getElementById('quizResult').classList.remove('hidden');
+        document.getElementById('quizArea').innerHTML = '';
+        if(document.getElementById('stab-myMistake').classList.contains('active')) renderStudentMistakes();
+    }
+    document.getElementById('startQuizBtn')?.addEventListener('click', startQuiz);
+    
+    document.getElementById('studentLoginBtn')?.addEventListener('click', () => {
+        let sid = document.getElementById('studentIdInput').value.trim();
+        if(!sid) return;
+        let found = mistakeStatsData?.students.find(s => s.id === sid);
+        if(found){
+            currentStudent = { id: found.id, name: found.name, answers: found.answers, score: found.score };
+            document.getElementById('studentLoginBox').classList.add('hidden');
+            document.getElementById('studentContent').classList.remove('hidden');
+            document.getElementById('studentNameTitle').innerHTML = `📋 ${found.name||sid} 的成绩`;
+            renderStudentAllQuestions();
+            renderStudentMistakes();
+        } else document.getElementById('loginStatus').textContent = '未找到该学生';
+    });
+    document.getElementById('studentScoreCategorySelect')?.addEventListener('change', renderStudentAllQuestions);
+    document.getElementById('mistakeCategoryStudentSelect')?.addEventListener('change', renderStudentMistakes);
+    
+    // 主Tab切换
+    document.querySelectorAll('.main-tab').forEach(btn=>btn.addEventListener('click',()=>{
+        document.querySelectorAll('.main-tab').forEach(t=>t.classList.remove('active'));
+        btn.classList.add('active');
+        let role=btn.dataset.role;
+        document.getElementById('teacherPanel').classList.toggle('hidden', role!=='teacher');
+        document.getElementById('studentPanel').classList.toggle('hidden', role!=='student');
+    }));
+    document.querySelectorAll('#teacherPanel .sub-tab').forEach(tab=>tab.addEventListener('click',()=>{
+        document.querySelectorAll('#teacherPanel .sub-tab').forEach(t=>t.classList.remove('active'));
+        tab.classList.add('active');
+        let sub=tab.dataset.sub;
+        document.querySelectorAll('#teacherPanel .tab-content').forEach(c=>c.classList.remove('active'));
+        document.getElementById('sub-'+sub).classList.add('active');
+        if(sub==='questionBank') renderQuestionBank();
+        if(sub==='mistakeStats' && mistakeStatsData) renderMistakeAnalysisForStats();
+        if(sub==='teachingAdvice') renderTeachingAdvice();
+    }));
+    document.querySelectorAll('#studentPanel .sub-tab').forEach(tab=>tab.addEventListener('click',()=>{
+        document.querySelectorAll('#studentPanel .sub-tab').forEach(t=>t.classList.remove('active'));
+        tab.classList.add('active');
+        let stab=tab.dataset.stab;
+        document.querySelectorAll('#studentPanel .tab-content').forEach(c=>c.classList.remove('active'));
+        document.getElementById('stab-'+stab).classList.add('active');
+        if(stab==='myScore') renderStudentAllQuestions();
+        if(stab==='myMistake') renderStudentMistakes();
+        if(stab==='selfTest'){ document.getElementById('quizArea').innerHTML=''; document.getElementById('quizResult').classList.add('hidden'); }
+    }));
+    document.getElementById('sendChatBtn')?.addEventListener('click',()=>{
+        let input=document.getElementById('chatInput').value;
+        if(!input) return;
+        let box=document.getElementById('chatBox');
+        box.innerHTML+=`<div class="chat-msg user">${input}</div>`;
+        setTimeout(()=>{ box.innerHTML+=`<div class="chat-msg ai">收到你的问题，这是演示模式。建议老师后端接入AI API。</div>`; box.scrollTop=box.scrollHeight; },300);
+        document.getElementById('chatInput').value='';
+        box.scrollTop=box.scrollHeight;
+    });
+    loadData();
+    renderQuestionBank();
+    if(!mistakeStatsData) loadSampleMistake();
+    updateAllCategorySelects();
+})();
+</script>
+</body>
+</html>
