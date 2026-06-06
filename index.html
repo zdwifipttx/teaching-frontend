@@ -233,6 +233,7 @@
 </div>
 <script>
 (function(){
+    const API_BASE_URL = 'https://teaching-backend-production.up.railway.app';// 部署后成线上地址
     const STORAGE_KEY = 'teaching_data_v12';
     let studentMistakeCounter = {};
     let appData = { questionBank: [], multiExamData: [], multiExamCount: 2, multiSubjects: [], multiSubjectMarks: {} };
@@ -559,6 +560,34 @@
     }
     
     // 学生端错题本明细表格（悬停完整题目+选项）
+    // 加载 AI 对话历史
+async function loadChatHistory(userId) {
+    try {
+        const res = await fetch(`${API_BASE_URL}/api/chat/history/${userId}`);
+        if (!res.ok) throw new Error('加载历史失败');
+        const history = await res.json();
+        const chatBox = document.getElementById('chatBox');
+        chatBox.innerHTML = '<div class="chat-msg ai">你好！我是AI助教。</div>'; // 保留欢迎语
+        // 按时间顺序显示历史消息（created_at 升序）
+        history.forEach(msg => {
+            chatBox.innerHTML += `<div class="chat-msg user">${escapeHtml(msg.user_message)}</div>`;
+            chatBox.innerHTML += `<div class="chat-msg ai">${escapeHtml(msg.ai_response)}</div>`;
+        });
+        chatBox.scrollTop = chatBox.scrollHeight;
+    } catch (err) {
+        console.error('加载聊天历史失败', err);
+    }
+}
+
+// 简单的防XSS工具函数
+function escapeHtml(str) {
+    return str.replace(/[&<>]/g, function(m) {
+        if (m === '&') return '&amp;';
+        if (m === '<') return '&lt;';
+        if (m === '>') return '&gt;';
+        return m;
+    });
+}
     function renderStudentMistakes(){
         if (!currentStudent || !mistakeStatsData) return;
         let studentData = mistakeStatsData.students.find(s => s.id === currentStudent.id);
@@ -714,6 +743,7 @@
             document.getElementById('studentNameTitle').innerHTML = `📋 ${found.name||sid} 的成绩`;
             renderStudentAllQuestions();
             renderStudentMistakes();
+            loadChatHistory(sid);   // 加载该学生的聊天历史
         } else document.getElementById('loginStatus').textContent = '未找到该学生';
     });
     document.getElementById('studentScoreCategorySelect')?.addEventListener('change', renderStudentAllQuestions);
@@ -747,15 +777,51 @@
         if(stab==='myMistake') renderStudentMistakes();
         if(stab==='selfTest'){ document.getElementById('quizArea').innerHTML=''; document.getElementById('quizResult').classList.add('hidden'); }
     }));
-    document.getElementById('sendChatBtn')?.addEventListener('click',()=>{
-        let input=document.getElementById('chatInput').value;
-        if(!input) return;
-        let box=document.getElementById('chatBox');
-        box.innerHTML+=`<div class="chat-msg user">${input}</div>`;
-        setTimeout(()=>{ box.innerHTML+=`<div class="chat-msg ai">收到你的问题，这是演示模式。建议老师后端接入AI API。</div>`; box.scrollTop=box.scrollHeight; },300);
-        document.getElementById('chatInput').value='';
-        box.scrollTop=box.scrollHeight;
-    });
+    document.getElementById('sendChatBtn')?.addEventListener('click', async () => {
+    const input = document.getElementById('chatInput');
+    const message = input.value.trim();
+    if (!message) return;
+    if (!currentStudent) {
+        alert('请先登录学生端');
+        return;
+    }
+
+    const userId = currentStudent.id;
+    const chatBox = document.getElementById('chatBox');
+
+    // 显示用户消息
+    chatBox.innerHTML += `<div class="chat-msg user">${escapeHtml(message)}</div>`;
+    chatBox.scrollTop = chatBox.scrollHeight;
+    input.value = '';
+
+    // 显示“AI正在思考...”临时消息
+    const tempMsgId = 'temp-ai-msg';
+    chatBox.innerHTML += `<div id="${tempMsgId}" class="chat-msg ai">🤔 正在思考...</div>`;
+    const tempElement = document.getElementById(tempMsgId);
+    tempElement.scrollIntoView({ behavior: 'smooth' });
+
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/chat`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId, message })
+        });
+        const data = await response.json();
+        // 移除临时消息
+        tempElement.remove();
+        if (response.ok) {
+            const aiReply = data.reply;
+            chatBox.innerHTML += `<div class="chat-msg ai">${escapeHtml(aiReply)}</div>`;
+        } else {
+            chatBox.innerHTML += `<div class="chat-msg ai">❌ 服务出错：${data.error || '未知错误'}</div>`;
+        }
+    } catch (err) {
+        tempElement.remove();
+        chatBox.innerHTML += `<div class="chat-msg ai">❌ 网络错误，请确认后端服务已启动</div>`;
+        console.error(err);
+    }
+    chatBox.scrollTop = chatBox.scrollHeight;
+});
     loadData();
     renderQuestionBank();
     if(!mistakeStatsData) loadSampleMistake();
